@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DijkstraFlow // Smart Route Optimization</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="logo-area">
+      <svg class="sparkle-icon" viewBox="0 0 24 24">
+        <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z"></path>
+      </svg>
+      <h1>DijkstraFlow <span class="logo-sub">// ROUTE OPTIMIZER</span></h1>
+      <svg class="sparkle-icon sparkle-yellow" viewBox="0 0 24 24">
+        <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z"></path>
+      </svg>
+    </div>
+    
+    <div class="top-stats-container">
+      <div class="stat-bubble">
+        <span class="label">JUNCTIONS</span>
+        <span class="value" id="hud-total-nodes">0</span>
+      </div>
+      <div class="stat-bubble">
+        <span class="label">ROADS</span>
+        <span class="value" id="hud-total-edges">0</span>
+      </div>
+      <div class="stat-bubble">
+        <span class="label">ACTIVE PATH</span>
+        <span class="value" id="hud-active-path">NONE</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Algorithm Explainer Button -->
+      <button id="btn-explain" class="explain-btn" title="See how the selected routing algorithm works step by step">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4M12 8h.01"/>
+        </svg>
+        Explain Route Logic
+      </button>
+
+      <label class="map-theme-label" for="map-theme-select">GRID:</label>
+      <select id="map-theme-select" class="theme-select">
+        <option value="blueprint">Blueprint Grid</option>
+        <option value="satellite">Blue Layout</option>
+        <option value="minimal">Minimal Grid</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Main HUD Layout -->
+  <main class="app-container">
+    <!-- Left Sidebar: Tools & Settings -->
+    <aside class="sidebar left-sidebar">
+      <!-- System Toolbox -->
+      <section class="control-section">
+        <h2 class="section-title">SYSTEM TOOLBOX</h2>
+        <div class="toolbox-grid">
+          <button id="btn-add-node" class="tool-btn tool-node active" title="Place road junctions by clicking on the canvas">
+            <span class="btn-icon">📌</span>
+            <span class="btn-text">Add Junction</span>
+          </button>
+          <button id="btn-add-edge" class="tool-btn tool-edge" title="Drag from one junction to another to draw a road">
+            <span class="btn-icon">🔗</span>
+            <span class="btn-text">Link Roads</span>
+          </button>
+          <button id="btn-sketch" class="tool-btn tool-sketch" title="Sketch roads freehand — auto-converts to graph after 1.2s">
+            <span class="btn-icon">✍️</span>
+            <span class="btn-text">Sketch Road</span>
+          </button>
+          <button id="btn-clear" class="tool-btn tool-clear" title="Reset all junctions and roads">
+            <span class="btn-icon">💥</span>
+            <span class="btn-text">Reset Grid</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Dijkstra Routing Mode Preferences -->
+      <section class="control-section">
+        <h2 class="section-title">ROUTING MODES</h2>
+        <div class="routing-modes">
+          <label class="radio-card active">
+            <input type="radio" name="routing-mode" value="shortest" checked>
+            <div class="radio-content">
+              <span class="mode-icon">⚡</span>
+              <div class="mode-details">
+                <span class="mode-name">Shortest Path</span>
+                <span class="mode-desc">Minimizes total distance</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="radio-card">
+            <input type="radio" name="routing-mode" value="safest">
+            <div class="radio-content">
+              <span class="mode-icon">🛡️</span>
+              <div class="mode-details">
+                <span class="mode-name">Safest Route</span>
+                <span class="mode-desc">Avoids low-safety paths</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="radio-card">
+            <input type="radio" name="routing-mode" value="scenic">
+            <div class="radio-content">
+              <span class="mode-icon">🌸</span>
+              <div class="mode-details">
+                <span class="mode-name">Scenic Route</span>
+                <span class="mode-desc">Prefers high-beauty roads</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="radio-card">
+            <input type="radio" name="routing-mode" value="balanced">
+            <div class="radio-content">
+              <span class="mode-icon">⚖️</span>
+              <div class="mode-details">
+                <span class="mode-name">Balanced Choice</span>
+                <span class="mode-desc">Custom coefficient weights</span>
+              </div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Balanced Weights Sliders -->
+      <section class="control-section hidden" id="balanced-weights-section">
+        <h2 class="section-title">BALANCED COEFFICIENTS</h2>
+        <div class="sliders-list">
+          <div class="slider-container">
+            <div class="slider-header">
+              <span>Distance Weight (w₁)</span>
+              <span id="val-w-dist">1.0</span>
+            </div>
+            <input type="range" id="slider-w-dist" min="0" max="2" step="0.1" value="1.0">
+          </div>
+          <div class="slider-container">
+            <div class="slider-header">
+              <span>Beauty Preference (w₂)</span>
+              <span id="val-w-beauty">1.0</span>
+            </div>
+            <input type="range" id="slider-w-beauty" min="0" max="2" step="0.1" value="1.0">
+          </div>
+          <div class="slider-container">
+            <div class="slider-header">
+              <span>Safety Preference (w₃)</span>
+              <span id="val-w-safety">1.0</span>
+            </div>
+            <input type="range" id="slider-w-safety" min="0" max="2" step="0.1" value="1.0">
+          </div>
+          <div class="slider-container">
+            <div class="slider-header">
+              <span>Traffic Congestion (w₄)</span>
+              <span id="val-w-traffic">1.0</span>
+            </div>
+            <input type="range" id="slider-w-traffic" min="0" max="2" step="0.1" value="1.0">
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Canvas Layout -->
+    <div class="canvas-area">
+      <div id="canvas-grid-bg" class="canvas-bg grid-mode"></div>
+      <canvas id="main-canvas"></canvas>
+      
+      <!-- Canvas Overlays -->
+      <div class="canvas-hud-overlay top-left-hud">
+        <div class="hud-indicator">DijkstraFlow: <span class="pulse-text">ACTIVE</span></div>
+        <div class="hud-indicator">TOOL: <span id="canvas-mode-display">ADD JUNCTION</span></div>
+      </div>
+
+      <div class="canvas-hud-overlay top-right-hud">
+        <div class="node-selectors">
+          <div class="node-select-pair">
+            <label for="select-start-node">START:</label>
+            <select id="select-start-node" class="hud-select">
+              <option value="">- Select -</option>
+            </select>
+          </div>
+          <div class="node-select-pair">
+            <label for="select-end-node">DEST:</label>
+            <select id="select-end-node" class="hud-select">
+              <option value="">- Select -</option>
+            </select>
+          </div>
+        </div>
+        <button id="btn-run-sim" class="pulse-btn" disabled>▶ RUN DIJKSTRA</button>
+      </div>
+
+      <div class="canvas-hud-overlay bottom-hud">
+        <div class="instruction-box">
+          <span class="info-icon">ℹ️</span>
+          <span id="instruction-text">Click anywhere on the grid to place road junctions (nodes).</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <aside class="sidebar right-sidebar">
+      <!-- Edge Editor -->
+      <section class="control-section editing-panel" id="edge-editor-section">
+        <h2 class="section-title">ROAD EDITOR <span class="selected-target" id="edit-road-label">ROAD A → B</span></h2>
+        <div class="editor-form">
+          <div class="slider-container">
+            <div class="slider-header">
+              <span>Road Distance (km)</span>
+              <span id="val-edge-dist">10</span>
+            </div>
+            <input type="range" id="slider-edge-dist" min="1" max="100" value="10">
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-header font-gold">
+              <span>🌸 Beauty Rating</span>
+              <span id="val-edge-beauty">5/10</span>
+            </div>
+            <input type="range" id="slider-edge-beauty" min="1" max="10" value="5">
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-header font-cyan">
+              <span>🛡️ Safety Rating</span>
+              <span id="val-edge-safety">5/10</span>
+            </div>
+            <input type="range" id="slider-edge-safety" min="1" max="10" value="5">
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-header font-red">
+              <span>🚗 Traffic Level</span>
+              <span id="val-edge-traffic">2/10</span>
+            </div>
+            <input type="range" id="slider-edge-traffic" min="1" max="10" value="2">
+          </div>
+
+          <div class="field-container">
+            <label for="select-edge-condition">Surface Quality:</label>
+            <select id="select-edge-condition" class="hud-select w-full">
+              <option value="asphalt">Asphalt (Excellent)</option>
+              <option value="concrete">Concrete (Good)</option>
+              <option value="gravel">Gravel (Rough)</option>
+              <option value="dirt">Dirt Road (Poor)</option>
+            </select>
+          </div>
+          
+          <button id="btn-delete-edge" class="btn danger-flat w-full">🗑 Delete Road</button>
+        </div>
+      </section>
+
+      <!-- Junction Editor -->
+      <section class="control-section editing-panel hidden" id="node-editor-section">
+        <h2 class="section-title">JUNCTION EDITOR <span class="selected-target" id="edit-node-label">NODE A</span></h2>
+        <div class="editor-form">
+          <div class="field-container">
+            <label for="input-node-name">Rename Junction:</label>
+            <input type="text" id="input-node-name" class="hud-input w-full" maxlength="8">
+          </div>
+          <button id="btn-delete-node" class="btn danger-flat w-full">🗑 Delete Junction</button>
+        </div>
+      </section>
+
+      <!-- Route Statistics -->
+      <section class="control-section">
+        <h2 class="section-title">ACTIVE PATH STATISTICS</h2>
+        <div class="stats-panel-glow">
+          <div class="matrix-grid">
+            <div class="matrix-cell">
+              <span class="matrix-label">Total Distance</span>
+              <span class="matrix-val" id="stat-distance">--</span>
+            </div>
+            <div class="matrix-cell">
+              <span class="matrix-label">Avg Beauty</span>
+              <span class="matrix-val text-beauty" id="stat-beauty">--</span>
+            </div>
+            <div class="matrix-cell">
+              <span class="matrix-label">Avg Safety</span>
+              <span class="matrix-val text-safety" id="stat-safety">--</span>
+            </div>
+            <div class="matrix-cell">
+              <span class="matrix-label">Travel Time</span>
+              <span class="matrix-val text-time" id="stat-time">--</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Optimization Comparative Grid -->
+      <section class="control-section">
+        <h2 class="section-title">ROUTE ANALYSIS COMPARISON</h2>
+        <div class="comparison-container">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Mode</th>
+                <th>Dist</th>
+                <th>Safe</th>
+                <th>Scenic</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="comparison-rows">
+              <tr id="row-shortest">
+                <td class="row-title"><span class="font-yellow">Shortest</span></td>
+                <td class="stat-c-dist">--</td>
+                <td class="stat-c-safe">--</td>
+                <td class="stat-c-scenic">--</td>
+                <td class="stat-c-time">--</td>
+              </tr>
+              <tr id="row-safest">
+                <td class="row-title"><span class="font-cyan">Safest</span></td>
+                <td class="stat-c-dist">--</td>
+                <td class="stat-c-safe">--</td>
+                <td class="stat-c-scenic">--</td>
+                <td class="stat-c-time">--</td>
+              </tr>
+              <tr id="row-scenic">
+                <td class="row-title"><span class="font-beauty">Scenic</span></td>
+                <td class="stat-c-dist">--</td>
+                <td class="stat-c-safe">--</td>
+                <td class="stat-c-scenic">--</td>
+                <td class="stat-c-time">--</td>
+              </tr>
+              <tr id="row-balanced">
+                <td class="row-title"><span class="font-magenta">Balanced</span></td>
+                <td class="stat-c-dist">--</td>
+                <td class="stat-c-safe">--</td>
+                <td class="stat-c-scenic">--</td>
+                <td class="stat-c-time">--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- AI Advisor -->
+      <section class="control-section">
+        <h2 class="section-title">DIJKSTRAFLOW ADVISOR</h2>
+        <div class="ai-box">
+          <div class="ai-header">
+            <svg class="sparkle-icon sparkle-mint" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+              <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z"></path>
+            </svg>
+            <span class="ai-title">FLOW_ADVISOR.EXE</span>
+          </div>
+          <div class="ai-body" id="ai-recommendation-text">
+            Grid idle. Place junctions and connect roads to generate routing recommendations.
+          </div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast-notification" class="toast hidden"></div>
+
+  <!-- Algorithm Explainer Modal -->
+  <div id="explain-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <svg class="sparkle-icon sparkle-mint" viewBox="0 0 24 24" style="width:20px;height:20px;">
+            <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z"></path>
+          </svg>
+          <h2 class="modal-title" id="modal-route-title">ALGORITHM EXPLAINER</h2>
+        </div>
+        <button id="btn-close-modal" class="modal-close-btn">✕ Close</button>
+      </div>
+      <div class="modal-body" id="modal-body-content">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Modules -->
+  <script src="graph.js"></script>
+  <script src="dijkstra.js"></script>
+  <script src="sketch.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
