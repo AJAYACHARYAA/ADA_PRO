@@ -274,3 +274,6 @@ class RoadGraph {
     return this.nodes.find(n => n.label === label);
   }
 }
+
+export { Node, Edge, RoadGraph };
+

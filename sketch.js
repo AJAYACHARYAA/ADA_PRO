@@ -171,3 +171,6 @@ class SketchHandler {
     this.clear();
   }
 }
+
+export { SketchHandler };
+

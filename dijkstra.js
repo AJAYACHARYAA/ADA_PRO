@@ -186,3 +186,6 @@ function runDijkstra(graph, startNode, endNode, mode, weights) {
     totalTime: parseFloat(totalTime.toFixed(1))
   };
 }
+
+export { calculateEdgeTravelTime, getEdgeWeight, runDijkstra };
+

@@ -1,6 +1,11 @@
 // DijkstraFlow - Main Application Coordinator
 
+import { RoadGraph } from './graph.js';
+import { SketchHandler } from './sketch.js';
+import { runDijkstra, getEdgeWeight } from './dijkstra.js';
+
 document.addEventListener('DOMContentLoaded', () => {
+
   const canvas = document.getElementById('main-canvas');
   const ctx = canvas.getContext('2d');
 
